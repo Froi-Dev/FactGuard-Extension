@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "FactGuard",
+  "version": "1.0.0",
+  "description": "Capture screenshots, crop regions, and detect AI-generated content with FactGuard.",
+
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "FactGuard — AI Content Detector"
+  },
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "commands": {
+    "capture-screenshot": {
+      "suggested_key": {
+        "default": "Shift+D",
+        "mac": "Shift+D"
+      },
+      "description": "Capture a screenshot of the current tab for analysis"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
