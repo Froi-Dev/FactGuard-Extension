@@ -1,0 +1,212 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   FactGuard — Premium Content Script Styles (Clean & Modern)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Floating Trigger Button ─────────────────────────────────────────────── */
+#factguard-trigger-btn {
+  position: absolute;
+  z-index: 2147483647; /* Max z-index */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(8px) scale(0.95);
+  transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+#factguard-trigger-btn.factguard-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+#factguard-trigger-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px) scale(1.02);
+}
+
+#factguard-trigger-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+#factguard-trigger-btn .factguard-icon {
+  width: 14px;
+  height: 14px;
+  color: #4f46e5;
+}
+
+#factguard-trigger-btn .factguard-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: factguard-spin 0.6s linear infinite;
+}
+
+/* ─── Floating Tooltip (Premium Glassmorphism) ────────────────────────────── */
+#factguard-tooltip {
+  position: absolute;
+  z-index: 2147483647;
+  width: 280px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  color: #111827;
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition: opacity 0.25s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+#factguard-tooltip.factguard-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Close Button */
+#factguard-tooltip .factguard-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.04);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 14px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+#factguard-tooltip .factguard-close-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #111827;
+}
+
+/* Verdict Badge (Neutral) */
+#factguard-tooltip .factguard-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 24px;
+  letter-spacing: -0.2px;
+  background: rgba(0, 0, 0, 0.04);
+  color: #111827;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+#factguard-tooltip .factguard-verdict svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Confidence Header */
+#factguard-tooltip .factguard-confidence-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+#factguard-tooltip .factguard-confidence-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+#factguard-tooltip .factguard-confidence-value {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #111827;
+}
+
+/* Progress Bar (Sleek Neutral) */
+#factguard-tooltip .factguard-bar-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+#factguard-tooltip .factguard-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  width: 0%;
+  background: #6366f1; /* Vibrant Indigo Accent */
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Details Grid */
+#factguard-tooltip .factguard-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+#factguard-tooltip .factguard-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#factguard-tooltip .factguard-detail-key {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+#factguard-tooltip .factguard-detail-val {
+  font-size: 13px;
+  color: #111827;
+  font-weight: 600;
+}
+
+/* Footer */
+#factguard-tooltip .factguard-powered {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 10px;
+  color: #9ca3af;
+  text-align: center;
+  font-weight: 500;
+}
+
+@keyframes factguard-spin {
+  to { transform: rotate(360deg); }
+}

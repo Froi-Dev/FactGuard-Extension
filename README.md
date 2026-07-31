@@ -1,34 +1,44 @@
-# React + TypeScript + Vite
+# FactGuard Extension
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+FactGuard is a Chrome Extension built with **React**, **Vite**, and **Manifest V3**.
 
-Currently, two official plugins are available:
+## Requirements to Run on Another Device
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Since this is a Node.js project, it does not use a Python `requirements.txt`. Instead, all of the necessary libraries and dependencies are automatically managed by the `package.json` file. 
 
-## React Compiler
+To set this up on a new device, you just need to install Node.js and run the install command.
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+### 1. Prerequisites
+- **Node.js** (v18 or higher)
+  - Download from: [nodejs.org](https://nodejs.org/)
+- **Google Chrome** (or any Chromium-based browser)
 
-Note: This will impact Vite dev & build performances.
+### 2. Installation
+Once Node.js is installed on your new device, open your terminal (Command Prompt, PowerShell, or macOS Terminal), navigate to this project folder, and run:
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+# Install all dependencies listed in package.json
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### 3. Building the Extension
+To compile the React code into the vanilla JavaScript that Chrome understands, run:
+
+```bash
+# Build the project for production
+npm run build
+```
+*(Note: A new folder called `dist/` will be generated. This is the actual extension).*
+
+### 4. Loading the Extension into Chrome
+1. Open Google Chrome and go to `chrome://extensions/`
+2. Turn on **Developer mode** (toggle switch in the top right corner).
+3. Click the **Load unpacked** button.
+4. Select the `dist/` folder located inside your FactGuard project directory.
+
+### 5. Development Mode (Optional)
+If you want to edit the code on the new device, run:
+```bash
+npm run dev
+```
+This will watch your files for changes and rebuild the extension automatically. You will still need to click the 🔄 Reload button on the extension card in `chrome://extensions/` after making changes.

@@ -237,8 +237,11 @@ export default function Cropper() {
   if (!screenshot) {
     return (
       <div className="cropper-loading">
-        <div className="cropper-spinner" />
-        <p>Loading screenshot…</p>
+        <div className="skeleton-toolbar">
+          <div className="skeleton-item" style={{ width: "120px", height: "20px" }}></div>
+          <div className="skeleton-item" style={{ width: "160px", height: "32px" }}></div>
+        </div>
+        <div className="skeleton-canvas"></div>
       </div>
     );
   }
@@ -269,10 +272,7 @@ export default function Cropper() {
             onClick={handleConfirm}
             disabled={!hasSelection}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Confirm Crop
+            {hasSelection ? "Confirm Crop" : "Select region to confirm"}
           </button>
         </div>
       </div>
@@ -280,7 +280,7 @@ export default function Cropper() {
       {/* Instruction Hint */}
       {!hasSelection && (
         <div className="cropper-hint">
-          Click and drag to select a region
+          Click and drag across the canvas to select a region
         </div>
       )}
 

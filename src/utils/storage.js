@@ -11,7 +11,11 @@ const KEYS = {
   CROPPED: "factguard_cropped",
   STATUS: "factguard_status",
   RESULTS: "factguard_results",
+  TEXT_HISTORY: "factguard_text_history",
 };
+
+// Maximum number of text analysis history entries to keep
+const MAX_TEXT_HISTORY = 50;
 
 // ─── Screenshot ─────────────────────────────────────────────────────────────
 
@@ -66,6 +70,49 @@ export async function getResults() {
   return data[KEYS.RESULTS] || null;
 }
 
+// ─── Text Analysis History ──────────────────────────────────────────────────
+
+/**
+ * Retrieve the text analysis history array.
+ * Each entry: { snippet: string, result: Object, timestamp: string }
+ * @returns {Promise<Array>} History entries, newest first.
+ */
+export async function getTextHistory() {
+  const data = await chrome.storage.local.get(KEYS.TEXT_HISTORY);
+  return data[KEYS.TEXT_HISTORY] || [];
+}
+
+/**
+ * Save a new text analysis to history.
+ * Prepends the entry and trims the array to MAX_TEXT_HISTORY entries.
+ * @param {string} snippet - First 50 characters of the analyzed text
+ * @param {Object} result  - The analysis result object
+ */
+export async function saveTextAnalysis(snippet, result) {
+  const history = await getTextHistory();
+
+  const entry = {
+    snippet: snippet.substring(0, 50),
+    result: result,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Prepend new entry, trim to max size
+  history.unshift(entry);
+  if (history.length > MAX_TEXT_HISTORY) {
+    history.length = MAX_TEXT_HISTORY;
+  }
+
+  await chrome.storage.local.set({ [KEYS.TEXT_HISTORY]: history });
+}
+
+/**
+ * Clear all text analysis history.
+ */
+export async function clearTextHistory() {
+  await chrome.storage.local.remove(KEYS.TEXT_HISTORY);
+}
+
 // ─── Clear All ──────────────────────────────────────────────────────────────
 
 /** Reset all FactGuard storage to initial state. */
@@ -75,5 +122,6 @@ export async function clearAll() {
     KEYS.CROPPED,
     KEYS.STATUS,
     KEYS.RESULTS,
+    KEYS.TEXT_HISTORY,
   ]);
 }
