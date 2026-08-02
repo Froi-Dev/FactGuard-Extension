@@ -148,9 +148,10 @@ export default function App() {
   const needsAttention = isImageFake || hasResultError;
   const isDemoResult = results?.details?.model?.toLowerCase().includes("mock");
   const confidence = Math.min(100, Math.max(0, Number(results?.confidence) || 0));
+  const isDashboard = status === "idle" && !guide;
 
   return (
-    <div className="popup-shell">
+    <div className={`popup-shell${isDashboard ? " dashboard-active" : ""}`}>
       <div className="ambient-orb" aria-hidden="true" />
 
       <header className="topbar">
@@ -175,41 +176,67 @@ export default function App() {
         {status === "idle" && !guide && (
           <section className="home-view view-enter">
             <div className="intro">
-              <p className="eyebrow">A second look, in seconds</p>
-              <h1>What would you like to inspect?</h1>
-              <p>Check a visible image or selected writing without leaving the page.</p>
+              <p className="eyebrow">Verification workspace</p>
+              <h1>Inspect content on this page</h1>
+              <p>Review a visible image or selected writing without leaving your current tab.</p>
             </div>
 
-            <div className="tool-list">
-              <button className="tool-row image-tool" onClick={startImageCheck} disabled={isStarting}>
-                <span className="tool-icon"><ScanSearch size={25} /></span>
-                <span className="tool-copy">
-                  <strong>Check an image</strong>
-                  <small>Capture and crop anything visible</small>
-                </span>
-                <ArrowRight className="row-arrow" size={19} />
-              </button>
+            <section className="status-summary" aria-labelledby="dashboard-status">
+              <span className="status-summary-icon"><ShieldCheck size={20} /></span>
+              <span>
+                <strong id="dashboard-status">Awaiting content</strong>
+                <small>Choose an image or text check to begin</small>
+              </span>
+              <span className="status-label">Idle</span>
+            </section>
 
-              <button className="tool-row text-tool" onClick={prepareTextCheck} disabled={isStarting}>
-                <span className="tool-icon"><TextQuote size={25} /></span>
-                <span className="tool-copy">
-                  <strong>Check selected text</strong>
-                  <small>Highlight writing on the current page</small>
-                </span>
-                <ArrowRight className="row-arrow" size={19} />
-              </button>
-            </div>
+            <section className="analysis-section" aria-labelledby="analysis-tools-heading">
+              <div className="section-heading tool-heading">
+                <h2 id="analysis-tools-heading">Analysis tools</h2>
+                <span>Choose one</span>
+              </div>
 
-            <div className="shortcut-strip">
-              <Keyboard size={17} />
-              <span>Quick image capture</span>
-              <kbd>Alt</kbd><span className="plus">+</span><kbd>Shift</kbd><span className="plus">+</span><kbd>F</kbd>
-            </div>
+              <div className="tool-list">
+                <button
+                  className="tool-row image-tool"
+                  onClick={startImageCheck}
+                  disabled={isStarting}
+                  aria-busy={isStarting}
+                >
+                  <span className="tool-icon"><ScanSearch size={24} /></span>
+                  <span className="tool-copy">
+                    <strong>Check an image</strong>
+                    <small>Capture and crop a visible region</small>
+                  </span>
+                  <ArrowRight className="row-arrow" size={19} aria-hidden="true" />
+                </button>
+
+                <button
+                  className="tool-row text-tool"
+                  onClick={prepareTextCheck}
+                  disabled={isStarting}
+                  aria-busy={isStarting}
+                >
+                  <span className="tool-icon"><TextQuote size={24} /></span>
+                  <span className="tool-copy">
+                    <strong>Check selected text</strong>
+                    <small>Review highlighted writing on this page</small>
+                  </span>
+                  <ArrowRight className="row-arrow" size={19} aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="shortcut-strip" aria-label="Quick image capture shortcut">
+                <Keyboard size={17} aria-hidden="true" />
+                <span>Quick image capture</span>
+                <kbd>Alt</kbd><span className="plus">+</span><kbd>Shift</kbd><span className="plus">+</span><kbd>F</kbd>
+              </div>
+            </section>
 
             {textHistory.length > 0 && (
-              <section className="recent-section">
+              <section className="recent-section" aria-labelledby="recent-checks-heading">
                 <div className="section-heading">
-                  <h2>Recent text checks</h2>
+                  <h2 id="recent-checks-heading">Recent text checks</h2>
                   <span>{textHistory.length} saved</span>
                 </div>
                 <div className="history-list">
@@ -339,7 +366,11 @@ export default function App() {
       </main>
 
       <footer className="popup-footer">
-        <span className="status-dot" /> Ready to inspect this page
+        {isDashboard ? (
+          <><ShieldCheck size={14} aria-hidden="true" /> Checks stay in this browser</>
+        ) : (
+          <><span className="status-dot" /> Ready to inspect this page</>
+        )}
         <span>v1.0</span>
       </footer>
     </div>
