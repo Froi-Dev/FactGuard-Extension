@@ -48,9 +48,9 @@
   function ensureTriggerBtn() {
     if (triggerBtn && document.body.contains(triggerBtn)) return triggerBtn;
 
-    triggerBtn = document.createElement("div");
+    triggerBtn = document.createElement("button");
+    triggerBtn.type = "button";
     triggerBtn.id = BTN_ID;
-    triggerBtn.setAttribute("role", "button");
     triggerBtn.setAttribute("aria-label", "Analyze selected text with FactGuard");
     triggerBtn.innerHTML = BTN_HTML;
     document.body.appendChild(triggerBtn);
@@ -101,7 +101,7 @@
     btn.style.left = left + "px";
     btn.style.top = top + "px";
 
-    // Trigger fade-in + bounce via class
+    // Trigger a short, purposeful entrance transition.
     requestAnimationFrame(() => {
       btn.classList.add("factguard-visible");
     });
@@ -141,7 +141,7 @@
     return `
       <button class="factguard-close-btn" aria-label="Close">&times;</button>
 
-      <div class="factguard-verdict">
+      <div class="factguard-verdict ${isAI ? "factguard-caution" : "factguard-clear"}">
         ${iconHtml}
         <span>${result.label}</span>
       </div>
@@ -165,7 +165,7 @@
         </div>
       </div>
 
-      <div class="factguard-powered">FactGuard Model Analysis</div>
+      <div class="factguard-powered">${d.model && d.model.includes("Mock") ? "Demo result · detector API not connected" : "FactGuard Model Analysis"}</div>
     `;
   }
 
@@ -217,7 +217,7 @@
   function positionTooltip(rect) {
     if (!tooltip) return;
 
-    const tooltipWidth = 320;
+    const tooltipWidth = 310;
     // Temporarily make visible to measure height
     tooltip.style.visibility = "hidden";
     tooltip.style.display = "block";
@@ -397,6 +397,13 @@
   // ═══════════════════════════════════════════════════════════════════════════
   // EVENT LISTENERS
   // ═══════════════════════════════════════════════════════════════════════════
+
+  // Allows the popup to verify that the helper is active on the current page.
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === "FACTGUARD_PING") {
+      sendResponse({ ok: true });
+    }
+  });
 
   // Detect text selection on mouseup
   document.addEventListener("mouseup", (e) => {

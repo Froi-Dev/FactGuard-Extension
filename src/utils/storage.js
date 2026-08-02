@@ -113,6 +113,16 @@ export async function clearTextHistory() {
   await chrome.storage.local.remove(KEYS.TEXT_HISTORY);
 }
 
+/** Clear only the image workflow while preserving text-check history. */
+export async function clearImageAnalysis() {
+  await chrome.storage.local.remove([
+    KEYS.SCREENSHOT,
+    KEYS.CROPPED,
+    KEYS.STATUS,
+    KEYS.RESULTS,
+  ]);
+}
+
 // ─── Clear All ──────────────────────────────────────────────────────────────
 
 /** Reset all FactGuard storage to initial state. */

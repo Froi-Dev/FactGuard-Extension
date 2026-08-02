@@ -2,7 +2,7 @@
  * FactGuard — Background Service Worker
  *
  * Responsibilities:
- * 1. Listen for the Shift+D keyboard command
+ * 1. Listen for the Alt+Shift+F keyboard command or popup action
  * 2. Capture the visible tab as a screenshot
  * 3. Store the screenshot and open the cropper window
  * 4. Receive the cropped image from the cropper
@@ -15,55 +15,68 @@
 const TEXT_HISTORY_KEY = "factguard_text_history";
 const MAX_TEXT_HISTORY = 50;
 
-// ─── Keyboard Command Listener ──────────────────────────────────────────────
+// ─── Image capture (shared by the shortcut and popup action) ────────────────
+async function startImageCapture() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    throw new Error("No active browser tab was found.");
+  }
+
+  const screenshotDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
+    format: "png",
+    quality: 100,
+  });
+
+  await chrome.storage.local.set({
+    factguard_screenshot: screenshotDataUrl,
+    factguard_status: "cropping",
+    factguard_results: null,
+    factguard_cropped: null,
+  });
+
+  const screenWidth = tab.width || 1280;
+  const screenHeight = tab.height || 720;
+  const cropperWidth = Math.min(960, screenWidth);
+  const cropperHeight = Math.min(680, screenHeight);
+
+  await chrome.windows.create({
+    url: chrome.runtime.getURL("cropper.html"),
+    type: "popup",
+    width: cropperWidth,
+    height: cropperHeight,
+    left: Math.max(0, Math.round((screenWidth - cropperWidth) / 2)),
+    top: Math.max(0, Math.round((screenHeight - cropperHeight) / 2)),
+    focused: true,
+  });
+
+  console.log("[FactGuard] Screenshot captured. Cropper opened.");
+  return { ok: true };
+}
+
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== "capture-screenshot") return;
-
   try {
-    // Get the currently active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) {
-      console.error("[FactGuard] No active tab found.");
-      return;
-    }
-
-    // Capture the visible area of the tab as a PNG data URL
-    const screenshotDataUrl = await chrome.tabs.captureVisibleTab(null, {
-      format: "png",
-      quality: 100,
-    });
-
-    // Store the screenshot so the cropper page can read it
-    await chrome.storage.local.set({
-      factguard_screenshot: screenshotDataUrl,
-      factguard_status: "cropping", // status: idle | cropping | analyzing | done
-      factguard_results: null,
-    });
-
-    console.log("[FactGuard] Screenshot captured. Opening cropper...");
-
-    // Open the cropper as a popup window (centered, 900×650)
-    const screenWidth = tab.width || 1280;
-    const screenHeight = tab.height || 720;
-    const cropperWidth = Math.min(960, screenWidth);
-    const cropperHeight = Math.min(680, screenHeight);
-
-    await chrome.windows.create({
-      url: chrome.runtime.getURL("cropper.html"),
-      type: "popup",
-      width: cropperWidth,
-      height: cropperHeight,
-      left: Math.round((screenWidth - cropperWidth) / 2),
-      top: Math.round((screenHeight - cropperHeight) / 2),
-      focused: true,
-    });
+    await startImageCapture();
   } catch (err) {
     console.error("[FactGuard] Screenshot capture failed:", err);
+    await chrome.storage.local.set({ factguard_status: "idle" });
   }
 });
 
 // ─── Message Listener ───────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // ── Popup: start the same image workflow as the keyboard shortcut ──
+  if (message.type === "START_IMAGE_CAPTURE") {
+    startImageCapture()
+      .then(sendResponse)
+      .catch(async (err) => {
+        console.error("[FactGuard] Screenshot capture failed:", err);
+        await chrome.storage.local.set({ factguard_status: "idle" });
+        sendResponse({ ok: false, error: err.message || "Screenshot capture failed." });
+      });
+    return true;
+  }
+
   // ── Cropper: crop complete ──
   if (message.type === "CROP_COMPLETE") {
     handleCropComplete(message.croppedImage);
@@ -229,11 +242,13 @@ async function mockAnalyzeText(text) {
 
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   const aiScore = Math.random() * 100;
+  const isAIGenerated = aiScore > 50;
+  const confidence = isAIGenerated ? aiScore : 100 - aiScore;
 
   return {
-    isAIGenerated: aiScore > 50,
-    confidence: aiScore.toFixed(1),
-    label: aiScore > 50 ? "Likely AI-Generated" : "Likely Human-Written",
+    isAIGenerated,
+    confidence: confidence.toFixed(1),
+    label: isAIGenerated ? "Likely AI-Generated" : "Likely Human-Written",
     details: {
       wordCount: wordCount,
       characterCount: text.length,

@@ -89,7 +89,7 @@ export default function Cropper() {
       ctx.restore();
 
       // White dashed border around selection
-      ctx.strokeStyle = "#ffffff";
+      ctx.strokeStyle = "#fffaf0";
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.strokeRect(x, y, w, h);
@@ -97,7 +97,7 @@ export default function Cropper() {
 
       // Corner handles
       const handleSize = 8;
-      ctx.fillStyle = "#6366f1";
+      ctx.fillStyle = "#68b991";
       const corners = [
         [x, y],
         [x + w, y],
@@ -113,11 +113,11 @@ export default function Cropper() {
         const origW = Math.round(w / imageScale);
         const origH = Math.round(h / imageScale);
         const label = `${origW} × ${origH}`;
-        ctx.font = "12px -apple-system, sans-serif";
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.font = '600 12px "Avenir Next", sans-serif';
+        ctx.fillStyle = "rgba(23, 43, 38, 0.86)";
         const textWidth = ctx.measureText(label).width;
         ctx.fillRect(x + w / 2 - textWidth / 2 - 6, y + h / 2 - 10, textWidth + 12, 20);
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#fffaf0";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(label, x + w / 2, y + h / 2);

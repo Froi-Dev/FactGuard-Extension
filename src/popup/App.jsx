@@ -1,212 +1,377 @@
-import { useState, useEffect, useCallback } from "react";
-import { getResults, getStatus, getCroppedImage, clearAll, getTextHistory } from "../utils/storage.js";
+import { useCallback, useEffect, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Crop,
+  Image as ImageIcon,
+  Keyboard,
+  LockKeyhole,
+  MousePointer2,
+  RotateCcw,
+  ScanSearch,
+  ShieldCheck,
+  TextQuote,
+} from "lucide-react";
+import {
+  clearImageAnalysis,
+  getCroppedImage,
+  getResults,
+  getStatus,
+  getTextHistory,
+} from "../utils/storage.js";
 
-/**
- * FactGuard Popup — Main UI Component
- * (Redesigned: Apple-level Minimal / Modern SaaS)
- */
+const RESTRICTED_PROTOCOLS = ["chrome:", "edge:", "about:", "brave:", "view-source:"];
+
+function isRestrictedPage(url = "") {
+  try {
+    const parsed = new URL(url);
+    return RESTRICTED_PROTOCOLS.includes(parsed.protocol) ||
+      parsed.hostname === "chrome.google.com" ||
+      parsed.hostname === "chromewebstore.google.com";
+  } catch {
+    return true;
+  }
+}
+
+function formatTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function App() {
   const [status, setStatus] = useState("idle");
   const [results, setResults] = useState(null);
   const [croppedImage, setCroppedImage] = useState(null);
   const [textHistory, setTextHistory] = useState([]);
+  const [guide, setGuide] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [isStarting, setIsStarting] = useState(false);
 
-  // ─── Load state from storage on mount ───────────────────────────────────
   const loadState = useCallback(async () => {
     try {
-      const currentStatus = await getStatus();
-      const currentResults = await getResults();
-      const currentCropped = await getCroppedImage();
-      const currentTextHistory = await getTextHistory();
-
-      setStatus(currentStatus || "idle");
-      setResults(currentResults);
-      setCroppedImage(currentCropped);
-      setTextHistory(currentTextHistory || []);
-    } catch (err) {
-      console.error("[FactGuard Popup] Failed to load state:", err);
+      const [nextStatus, nextResults, nextCropped, nextHistory] = await Promise.all([
+        getStatus(),
+        getResults(),
+        getCroppedImage(),
+        getTextHistory(),
+      ]);
+      setStatus(nextStatus || "idle");
+      setResults(nextResults);
+      setCroppedImage(nextCropped);
+      setTextHistory(nextHistory || []);
+    } catch (error) {
+      console.error("[FactGuard Popup] Failed to load state:", error);
+      setNotice({ type: "error", text: "FactGuard could not read its saved results. Reopen the extension and try again." });
     }
   }, []);
 
   useEffect(() => {
     loadState();
-
-    // Poll storage every 500ms to catch updates from background
-    const interval = setInterval(loadState, 500);
-    return () => clearInterval(interval);
+    const interval = window.setInterval(loadState, 700);
+    return () => window.clearInterval(interval);
   }, [loadState]);
 
-  // ─── Reset to idle state ────────────────────────────────────────────────
-  const handleNewAnalysis = async () => {
-    await clearAll();
+  const startImageCheck = async () => {
+    setIsStarting(true);
+    setNotice(null);
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "START_IMAGE_CAPTURE" });
+      if (!response?.ok) {
+        throw new Error(response?.error || "The screenshot tool could not start.");
+      }
+      window.close();
+    } catch (error) {
+      setGuide("image");
+      setNotice({
+        type: "error",
+        text: error.message || "Open a normal webpage, then try the image check again.",
+      });
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const prepareTextCheck = async () => {
+    setIsStarting(true);
+    setNotice(null);
+    setGuide("text");
+
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.id || isRestrictedPage(tab.url)) {
+        throw new Error("Chrome blocks extensions on this page. Open an article or another regular website first.");
+      }
+
+      try {
+        await chrome.tabs.sendMessage(tab.id, { type: "FACTGUARD_PING" });
+      } catch {
+        await chrome.scripting.insertCSS({
+          target: { tabId: tab.id },
+          files: ["content/content.css"],
+        });
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ["content/content.js"],
+        });
+      }
+
+      setNotice({
+        type: "success",
+        text: "Text checker is ready on this page. Close this popup, then highlight at least 10 characters.",
+      });
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text: error.message || "Refresh the webpage and open FactGuard again.",
+      });
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const resetImage = async () => {
+    await clearImageAnalysis();
     setStatus("idle");
     setResults(null);
     setCroppedImage(null);
+    setGuide(null);
+    setNotice(null);
   };
 
-  // ─── SVG Icons (Minimal & Semantic) ─────────────────────────────────────
-  const ShieldIcon = () => (
-    <svg className="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-  );
-
-  const CheckIcon = () => (
-    <svg className="verdict-icon" style={{ color: "#34C759" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-
-  const WarningIcon = () => (
-    <svg className="verdict-icon" style={{ color: "#FF3B30" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-      <line x1="12" y1="9" x2="12" y2="13" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
-    </svg>
-  );
+  const isImageFake = Boolean(results?.isAIGenerated ?? results?.isFake);
+  const hasResultError = Boolean(results?.details?.error || results?.label === "Error");
+  const needsAttention = isImageFake || hasResultError;
+  const isDemoResult = results?.details?.model?.toLowerCase().includes("mock");
+  const confidence = Math.min(100, Math.max(0, Number(results?.confidence) || 0));
 
   return (
-    <div className="popup-container">
-      {/* Header */}
-      <header className="popup-header">
-        <div className="logo">
-          <ShieldIcon />
-          <span className="logo-text">FactGuard</span>
-        </div>
-        <span className="version-badge">v1.0</span>
+    <div className="popup-shell">
+      <div className="ambient-orb" aria-hidden="true" />
+
+      <header className="topbar">
+        <button
+          className="brand"
+          onClick={() => {
+            setGuide(null);
+            setNotice(null);
+          }}
+          aria-label="FactGuard home"
+        >
+          <span className="brand-mark"><ShieldCheck size={20} strokeWidth={2.2} /></span>
+          <span>
+            <strong>FactGuard</strong>
+            <small>Content authenticity</small>
+          </span>
+        </button>
+        <span className="privacy-chip"><LockKeyhole size={12} /> Local history</span>
       </header>
 
-      {/* Main Content Area */}
-      <main className="popup-content">
-
-        {/* State 1: IDLE / DASHBOARD */}
-        {status === "idle" && (
-          <div className="dashboard-view">
-            <div className="state-card">
-              <div className="state-header">
-                <h2 className="state-title">Image Analysis</h2>
-                <p className="state-desc">Capture an image to verify its authenticity.</p>
-              </div>
-
-              <div className="steps-list">
-                <div className="step">
-                  <span className="step-num">1</span>
-                  <span>Press <span className="kbd">Shift + Alt + F</span> to activate the cropper on any webpage.</span>
-                </div>
-              </div>
+      <main className="popup-main">
+        {status === "idle" && !guide && (
+          <section className="home-view view-enter">
+            <div className="intro">
+              <p className="eyebrow">A second look, in seconds</p>
+              <h1>What would you like to inspect?</h1>
+              <p>Check a visible image or selected writing without leaving the page.</p>
             </div>
 
-            {/* Text Analysis History */}
+            <div className="tool-list">
+              <button className="tool-row image-tool" onClick={startImageCheck} disabled={isStarting}>
+                <span className="tool-icon"><ScanSearch size={25} /></span>
+                <span className="tool-copy">
+                  <strong>Check an image</strong>
+                  <small>Capture and crop anything visible</small>
+                </span>
+                <ArrowRight className="row-arrow" size={19} />
+              </button>
+
+              <button className="tool-row text-tool" onClick={prepareTextCheck} disabled={isStarting}>
+                <span className="tool-icon"><TextQuote size={25} /></span>
+                <span className="tool-copy">
+                  <strong>Check selected text</strong>
+                  <small>Highlight writing on the current page</small>
+                </span>
+                <ArrowRight className="row-arrow" size={19} />
+              </button>
+            </div>
+
+            <div className="shortcut-strip">
+              <Keyboard size={17} />
+              <span>Quick image capture</span>
+              <kbd>Alt</kbd><span className="plus">+</span><kbd>Shift</kbd><span className="plus">+</span><kbd>F</kbd>
+            </div>
+
             {textHistory.length > 0 && (
-              <div className="history-section">
-                <h3 className="section-title">Recent Text Checks</h3>
+              <section className="recent-section">
+                <div className="section-heading">
+                  <h2>Recent text checks</h2>
+                  <span>{textHistory.length} saved</span>
+                </div>
                 <div className="history-list">
-                  {textHistory.slice(0, 5).map((entry, idx) => {
-                    const isFake = entry.result.isAIGenerated || entry.result.isFake;
+                  {textHistory.slice(0, 3).map((entry, index) => {
+                    const isAI = Boolean(entry.result?.isAIGenerated ?? entry.result?.isFake);
                     return (
-                      <div key={idx} className="history-item">
-                        <div className="history-item-header">
-                          <span className="history-snippet">"{entry.snippet}..."</span>
-                          {isFake ? <WarningIcon /> : <CheckIcon />}
-                        </div>
-                        <div className="history-item-meta">
-                          <span className="history-confidence">{entry.result.confidence}% Confidence</span>
-                          <span className="history-time">{new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
+                      <div className="history-row" key={`${entry.timestamp}-${index}`}>
+                        <span className={`history-verdict ${isAI ? "caution" : "clear"}`}>
+                          {isAI ? <AlertTriangle size={15} /> : <Check size={15} />}
+                        </span>
+                        <span className="history-copy">
+                          <strong>{entry.snippet}{entry.snippet?.length >= 50 ? "…" : ""}</strong>
+                          <small>{entry.result?.confidence}% confidence · {formatTime(entry.timestamp)}</small>
+                        </span>
                       </div>
                     );
                   })}
                 </div>
-              </div>
+              </section>
             )}
-          </div>
+          </section>
         )}
 
-        {/* State 2: CROPPING or ANALYZING (Skeleton Loading) */}
+        {status === "idle" && guide === "image" && (
+          <GuideView
+            title="Check a visible image"
+            subtitle="FactGuard captures only the tab you are viewing, then lets you choose the exact region."
+            icon={<ImageIcon size={28} />}
+            notice={notice}
+            onBack={() => { setGuide(null); setNotice(null); }}
+            steps={[
+              { icon: <Keyboard size={18} />, title: "Start the capture", text: "Click below or press Alt + Shift + F on any regular webpage." },
+              { icon: <Crop size={18} />, title: "Drag over the image", text: "A crop window opens. Select the area you want to inspect." },
+              { icon: <CheckCircle2 size={18} />, title: "Confirm and review", text: "Choose Confirm Crop and reopen FactGuard to see the result." },
+            ]}
+            action={
+              <button className="primary-action" onClick={startImageCheck} disabled={isStarting}>
+                <ScanSearch size={18} />
+                {isStarting ? "Starting capture…" : "Start image check"}
+              </button>
+            }
+          />
+        )}
+
+        {status === "idle" && guide === "text" && (
+          <GuideView
+            title="Check selected text"
+            subtitle="Works on articles, posts, documents, and most regular webpages."
+            icon={<TextQuote size={28} />}
+            notice={notice}
+            onBack={() => { setGuide(null); setNotice(null); }}
+            steps={[
+              { icon: <MousePointer2 size={18} />, title: "Highlight the writing", text: "Select at least 10 characters on the current webpage." },
+              { icon: <ShieldCheck size={18} />, title: "Choose Analyze", text: "A small FactGuard button appears beside your selection." },
+              { icon: <CheckCircle2 size={18} />, title: "Read the result", text: "The verdict and confidence appear next to the selected text." },
+            ]}
+            action={
+              <button className="primary-action" onClick={() => window.close()}>
+                <MousePointer2 size={18} />
+                {notice?.type === "error" ? "Close and open a webpage" : "Close and select text"}
+              </button>
+            }
+          />
+        )}
+
         {(status === "cropping" || status === "analyzing") && (
-          <div className="state-card">
-            <div className="state-header">
-              <h2 className="state-title">
-                {status === "cropping" ? "Waiting for Crop..." : "Analyzing Image..."}
-              </h2>
-              <p className="state-desc">
-                {status === "cropping" ? "Select a region on the page." : "Running machine learning models."}
-              </p>
+          <section className="progress-view view-enter" aria-live="polite">
+            <div className="scan-visual">
+              {croppedImage ? <img src={croppedImage} alt="Selected crop" /> : <ScanSearch size={40} />}
+              <span className="scan-line" />
             </div>
-
-            {/* Skeleton Layout imitating the final results view */}
-            <div className="skeleton-container">
-              <div className="skeleton-img"></div>
-              <div className="skeleton-text"></div>
-              <div className="skeleton-text short"></div>
-              <div className="skeleton-text"></div>
-            </div>
-          </div>
+            <p className="eyebrow">{status === "cropping" ? "Crop window active" : "Inspection in progress"}</p>
+            <h1>{status === "cropping" ? "Select the region to check" : "Looking for visual signals…"}</h1>
+            <p>{status === "cropping" ? "Drag over the image, then choose Confirm Crop." : "This usually takes only a moment."}</p>
+            <div className="loading-line"><span /></div>
+          </section>
         )}
 
-        {/* State 3: DONE (Results View) */}
         {status === "done" && results && (
-          <div className="state-card results-card">
+          <section className="result-view view-enter">
+            <div className="result-topline">
+              <p className="eyebrow">Image check complete</p>
+              <button className="icon-button" onClick={resetImage} aria-label="Start over"><RotateCcw size={17} /></button>
+            </div>
 
-            {/* Cropped Image Thumbnail */}
-            {croppedImage && (
-              <div className="preview-thumbnail">
-                <img src={croppedImage} alt="Cropped area" />
+            {croppedImage && <img className="result-image" src={croppedImage} alt="Analyzed selection" />}
+
+            <div className={`verdict-block ${needsAttention ? "caution" : "clear"}`}>
+              <span className="verdict-mark">
+                {needsAttention ? <AlertTriangle size={25} /> : <CheckCircle2 size={25} />}
+              </span>
+              <span>
+                <small>Assessment</small>
+                <strong>{results.label || (isImageFake ? "Likely AI-generated" : "Likely authentic")}</strong>
+              </span>
+            </div>
+
+            <div className="confidence-block">
+              <div>
+                <span>Model confidence</span>
+                <strong>{confidence.toFixed(confidence % 1 ? 1 : 0)}%</strong>
               </div>
+              <div className="confidence-track" aria-label={`${confidence}% model confidence`}>
+                <span style={{ width: `${confidence}%` }} />
+              </div>
+            </div>
+
+            <dl className="result-meta">
+              <div><dt>Model</dt><dd>{results.details?.model || "FactGuard detector"}</dd></div>
+              <div><dt>Analysis time</dt><dd>{results.details?.analysisTime || "—"}</dd></div>
+            </dl>
+
+            {isDemoResult && (
+              <div className="notice demo"><AlertTriangle size={17} /><span>This build uses simulated detection results. Connect a real detector API before relying on verdicts.</span></div>
             )}
 
-            {/* Semantic Verdict Section */}
-            <div className="verdict-section">
-              {results.isFake ? <WarningIcon /> : <CheckIcon />}
-              <div className="verdict-info">
-                <span className="verdict-label">{results.label}</span>
-                <span className="verdict-status">
-                  {results.isFake ? "Requires attention" : "No manipulation detected"}
-                </span>
-              </div>
-            </div>
+            {results.details?.error && (
+              <div className="notice error"><AlertTriangle size={17} /><span>{results.details.error}</span></div>
+            )}
 
-            {/* Monochromatic Confidence Bar */}
-            <div className="confidence-section">
-              <div className="confidence-header">
-                <span className="confidence-text">Model Confidence</span>
-                <span className="confidence-value">{results.confidence}%</span>
-              </div>
-              <div className="confidence-track">
-                <div
-                  className="confidence-fill"
-                  style={{ width: `${results.confidence}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Structured Details Grid */}
-            <div className="details-grid">
-              <div className="detail-item">
-                <span className="detail-label">Model</span>
-                <span className="detail-value">{results.details.model}</span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label">Time</span>
-                <span className="detail-value">{results.details.analysisTime}</span>
-              </div>
-              <div className="detail-item detail-full">
-                <span className="detail-label">Noise Signature</span>
-                <span className="detail-value">{results.details.noiseAnalysis}</span>
-              </div>
-            </div>
-
-            {/* Primary Action Button */}
-            <button className="btn-primary" onClick={handleNewAnalysis}>
-              Analyze Another Image
+            <button className="primary-action" onClick={resetImage}>
+              <RotateCcw size={18} /> Check another image
             </button>
-          </div>
+            <p className="disclaimer">AI detection is an estimate. Verify important decisions with additional sources.</p>
+          </section>
         )}
       </main>
 
       <footer className="popup-footer">
-        Strict privacy. Images are processed securely.
+        <span className="status-dot" /> Ready to inspect this page
+        <span>v1.0</span>
       </footer>
     </div>
+  );
+}
+
+function GuideView({ title, subtitle, icon, notice, onBack, steps, action }) {
+  return (
+    <section className="guide-view view-enter">
+      <button className="back-button" onClick={onBack}><ArrowLeft size={17} /> All tools</button>
+      <div className="guide-heading">
+        <span className="guide-icon">{icon}</span>
+        <div><h1>{title}</h1><p>{subtitle}</p></div>
+      </div>
+
+      {notice && (
+        <div className={`notice ${notice.type}`} role="status">
+          {notice.type === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+          <span>{notice.text}</span>
+        </div>
+      )}
+
+      <ol className="instruction-list">
+        {steps.map((step, index) => (
+          <li key={step.title}>
+            <span className="step-icon">{step.icon}</span>
+            <div><small>Step {index + 1}</small><strong>{step.title}</strong><p>{step.text}</p></div>
+          </li>
+        ))}
+      </ol>
+      {action}
+      <p className="restricted-note"><LockKeyhole size={13} /> Browser settings and Web Store pages do not allow extension tools.</p>
+    </section>
   );
 }
