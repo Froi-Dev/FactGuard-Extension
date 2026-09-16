@@ -1,408 +1,807 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
   Check,
   CheckCircle2,
-  Crop,
-  Image as ImageIcon,
-  Keyboard,
-  LockKeyhole,
+  ChevronRight,
+  Clock,
+  Copy,
+  ExternalLink,
+  FileImage,
+  FileText,
+  History,
+  Info,
+  LayoutDashboard,
+  Lock,
+  LogOut,
   MousePointer2,
-  RotateCcw,
-  ScanSearch,
+  Newspaper,
+  RefreshCw,
+  Search,
+  ShieldAlert,
   ShieldCheck,
-  TextQuote,
+  Sparkles,
+  Trash2,
+  User,
+  X,
 } from "lucide-react";
 import {
-  clearImageAnalysis,
-  getCroppedImage,
-  getResults,
-  getStatus,
-  getTextHistory,
+  checkBackendHealth,
+  getCurrentUser,
+  loginUser,
+  logoutUser,
+} from "../utils/api.js";
+import {
+  clearScanHistory,
+  getScanHistory,
 } from "../utils/storage.js";
 
-const RESTRICTED_PROTOCOLS = ["chrome:", "edge:", "about:", "brave:", "view-source:"];
+const DASHBOARD_URL = "http://localhost:5173";
 
-function isRestrictedPage(url = "") {
+function formatTimestamp(isoString) {
   try {
-    const parsed = new URL(url);
-    return RESTRICTED_PROTOCOLS.includes(parsed.protocol) ||
-      parsed.hostname === "chrome.google.com" ||
-      parsed.hostname === "chromewebstore.google.com";
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "";
+    const now = new Date();
+    const isToday =
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
+
+    const timeStr = d.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    if (isToday) return `Today, ${timeStr}`;
+    return `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${timeStr}`;
   } catch {
-    return true;
+    return "";
   }
 }
 
-function formatTime(timestamp) {
-  return new Date(timestamp).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function App() {
-  const [status, setStatus] = useState("idle");
-  const [results, setResults] = useState(null);
-  const [croppedImage, setCroppedImage] = useState(null);
-  const [textHistory, setTextHistory] = useState([]);
-  const [guide, setGuide] = useState(null);
-  const [notice, setNotice] = useState(null);
-  const [isStarting, setIsStarting] = useState(false);
+  const [activeTab, setActiveTab] = useState("history"); // "history" | "dashboard"
+  const [backendOnline, setBackendOnline] = useState(true);
+  const [user, setUser] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
+  // Auth form state
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // History state
+  const [scanHistory, setScanHistory] = useState([]);
+  const [historyFilter, setHistoryFilter] = useState("all"); // "all" | "text" | "news" | "media"
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedScan, setSelectedScan] = useState(null); // Detailed modal
+  const [copiedDetail, setCopiedDetail] = useState(false);
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+
+  // ─── Load state ──────────────────────────────────────────────────────────
   const loadState = useCallback(async () => {
     try {
-      const [nextStatus, nextResults, nextCropped, nextHistory] = await Promise.all([
-        getStatus(),
-        getResults(),
-        getCroppedImage(),
-        getTextHistory(),
+      const [history, currentUser] = await Promise.all([
+        getScanHistory(),
+        getCurrentUser(),
       ]);
-      setStatus(nextStatus || "idle");
-      setResults(nextResults);
-      setCroppedImage(nextCropped);
-      setTextHistory(nextHistory || []);
-    } catch (error) {
-      console.error("[FactGuard Popup] Failed to load state:", error);
-      setNotice({ type: "error", text: "FactGuard could not read its saved results. Reopen the extension and try again." });
+      setScanHistory(history || []);
+      setUser(currentUser);
+    } catch (err) {
+      console.error("[VeriFai Popup] State read error:", err);
+    }
+  }, []);
+
+  const checkHealth = useCallback(async () => {
+    setIsCheckingHealth(true);
+    try {
+      const health = await checkBackendHealth();
+      setBackendOnline(health.ok);
+    } finally {
+      setIsCheckingHealth(false);
     }
   }, []);
 
   useEffect(() => {
     loadState();
-    const interval = window.setInterval(loadState, 700);
+    checkHealth();
+    const interval = window.setInterval(loadState, 1500);
     return () => window.clearInterval(interval);
-  }, [loadState]);
+  }, [loadState, checkHealth]);
 
-  const startImageCheck = async () => {
-    setIsStarting(true);
-    setNotice(null);
-    try {
-      const response = await chrome.runtime.sendMessage({ type: "START_IMAGE_CAPTURE" });
-      if (!response?.ok) {
-        throw new Error(response?.error || "The screenshot tool could not start.");
+  // ─── Filtered & Searched History ─────────────────────────────────────────
+  const filteredHistory = useMemo(() => {
+    return scanHistory.filter((item) => {
+      // Kind filter
+      if (historyFilter !== "all") {
+        if (historyFilter === "text" && item.kind !== "text") return false;
+        if (historyFilter === "news" && item.kind !== "news") return false;
+        if (
+          historyFilter === "media" &&
+          item.kind !== "media" &&
+          item.kind !== "news_image"
+        )
+          return false;
       }
-      window.close();
-    } catch (error) {
-      setGuide("image");
-      setNotice({
-        type: "error",
-        text: error.message || "Open a normal webpage, then try the image check again.",
-      });
-    } finally {
-      setIsStarting(false);
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const titleMatch = (item.title || item.snippet || "").toLowerCase().includes(q);
+        const verdictMatch = (
+          item.result?.classification ||
+          item.result?.verdict ||
+          item.result?.label ||
+          ""
+        )
+          .toLowerCase()
+          .includes(q);
+        return titleMatch || verdictMatch;
+      }
+
+      return true;
+    });
+  }, [scanHistory, historyFilter, searchQuery]);
+
+  // ─── Computed Dashboard Statistics ───────────────────────────────────────
+  const stats = useMemo(() => {
+    const total = scanHistory.length;
+    if (total === 0) {
+      return { total: 0, authentic: 0, aiOrFake: 0, authenticPct: 0, aiOrFakePct: 0 };
+    }
+
+    let authentic = 0;
+    let aiOrFake = 0;
+
+    scanHistory.forEach((item) => {
+      const res = item.result;
+      if (!res) return;
+
+      if (item.kind === "text") {
+        if (res.classification === "Likely human-written") authentic++;
+        else if (res.classification === "Likely AI-generated") aiOrFake++;
+      } else if (item.kind === "news") {
+        if (res.verdict === "VERIFIED" || res.verdict === "LIKELY_TRUE") authentic++;
+        else if (res.verdict === "FALSE" || res.verdict === "LIKELY_FALSE" || res.verdict === "MISLEADING") aiOrFake++;
+      } else if (item.kind === "media" || item.kind === "news_image") {
+        if (res.isAIGenerated || res.label === "Likely AI-generated" || res.classification === "FAKE") aiOrFake++;
+        else if (res.label === "Likely authentic/camera-captured" || res.classification === "REAL") authentic++;
+      }
+    });
+
+    return {
+      total,
+      authentic,
+      aiOrFake,
+      authenticPct: total > 0 ? Math.round((authentic / total) * 100) : 0,
+      aiOrFakePct: total > 0 ? Math.round((aiOrFake / total) * 100) : 0,
+    };
+  }, [scanHistory]);
+
+  // ─── Clear History ────────────────────────────────────────────────────────
+  const handleClearHistory = async () => {
+    if (window.confirm("Are you sure you want to clear your local verification history?")) {
+      await clearScanHistory();
+      setScanHistory([]);
+      setSelectedScan(null);
     }
   };
 
-  const prepareTextCheck = async () => {
-    setIsStarting(true);
-    setNotice(null);
-    setGuide("text");
-
+  // ─── Login & Auth ─────────────────────────────────────────────────────────
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setAuthError("");
+    setIsLoggingIn(true);
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id || isRestrictedPage(tab.url)) {
-        throw new Error("Chrome blocks extensions on this page. Open an article or another regular website first.");
-      }
-
-      try {
-        await chrome.tabs.sendMessage(tab.id, { type: "FACTGUARD_PING" });
-      } catch {
-        await chrome.scripting.insertCSS({
-          target: { tabId: tab.id },
-          files: ["content/content.css"],
-        });
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ["content/content.js"],
-        });
-      }
-
-      setNotice({
-        type: "success",
-        text: "Text checker is ready on this page. Close this popup, then highlight at least 10 characters.",
-      });
-    } catch (error) {
-      setNotice({
-        type: "error",
-        text: error.message || "Refresh the webpage and open FactGuard again.",
-      });
+      const auth = await loginUser(authEmail, authPassword);
+      setUser(auth.user);
+      setShowAuthModal(false);
+      setAuthPassword("");
+    } catch (err) {
+      setAuthError(err.message || "Invalid email or password");
     } finally {
-      setIsStarting(false);
+      setIsLoggingIn(false);
     }
   };
 
-  const resetImage = async () => {
-    await clearImageAnalysis();
-    setStatus("idle");
-    setResults(null);
-    setCroppedImage(null);
-    setGuide(null);
-    setNotice(null);
+  const handleLogout = async () => {
+    await logoutUser();
+    setUser(null);
   };
 
-  const isImageFake = Boolean(results?.isAIGenerated ?? results?.isFake);
-  const hasResultError = Boolean(results?.details?.error || results?.label === "Error");
-  const needsAttention = isImageFake || hasResultError;
-  const isDemoResult = results?.details?.model?.toLowerCase().includes("mock");
-  const confidence = Math.min(100, Math.max(0, Number(results?.confidence) || 0));
-  const isDashboard = status === "idle" && !guide;
+  // ─── Verdict Tone Helper ──────────────────────────────────────────────────
+  const getVerdictInfo = (item) => {
+    const res = item?.result;
+    if (!res) return { label: "Completed", tone: "neutral" };
+
+    if (item.kind === "text") {
+      const isAI = res.classification === "Likely AI-generated";
+      const isHuman = res.classification === "Likely human-written";
+      return {
+        label: res.classification || "Scanned",
+        tone: isAI ? "fake" : isHuman ? "real" : "warning",
+      };
+    }
+
+    if (item.kind === "news") {
+      const v = res.verdict || "UNVERIFIED";
+      const isReal = v === "VERIFIED" || v === "LIKELY_TRUE";
+      const isFake = v === "FALSE" || v === "LIKELY_FALSE";
+      const labels = {
+        VERIFIED: "Real News",
+        LIKELY_TRUE: "Likely Real",
+        MISLEADING: "Misleading",
+        UNVERIFIED: "Unverified",
+        LIKELY_FALSE: "Likely Fake",
+        FALSE: "Fake News",
+      };
+      return {
+        label: labels[v] || v,
+        tone: isReal ? "real" : isFake ? "fake" : "warning",
+      };
+    }
+
+    if (item.kind === "media" || item.kind === "news_image") {
+      const label = res.label || res.classification || "Processed";
+      const isFake = res.isAIGenerated || label === "Likely AI-generated" || label === "FAKE";
+      const isReal = label === "Likely authentic/camera-captured" || label === "REAL";
+      return {
+        label: isFake ? "AI Generated" : isReal ? "Authentic" : label,
+        tone: isReal ? "real" : isFake ? "fake" : "warning",
+      };
+    }
+
+    return { label: "Scan Result", tone: "neutral" };
+  };
+
+  // Copy selected scan details
+  const handleCopyScan = () => {
+    if (!selectedScan) return;
+    const res = selectedScan.result;
+    const info = getVerdictInfo(selectedScan);
+    const text = `VeriFai Verification: ${selectedScan.title}\nVerdict: ${info.label} (${res?.confidence || 0}%)\nDetails: ${res?.explanation || res?.summary || res?.scoreInterpretation || ""}\nDate: ${new Date(selectedScan.timestamp).toLocaleString()}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedDetail(true);
+      setTimeout(() => setCopiedDetail(false), 1500);
+    });
+  };
 
   return (
-    <div className={`popup-shell${isDashboard ? " dashboard-active" : ""}`}>
-      <div className="ambient-orb" aria-hidden="true" />
-
+    <div className="shell">
+      {/* ── Topbar ── */}
       <header className="topbar">
-        <button
-          className="brand"
-          onClick={() => {
-            setGuide(null);
-            setNotice(null);
-          }}
-          aria-label="FactGuard home"
-        >
-          <span className="brand-mark"><ShieldCheck size={20} strokeWidth={2.2} /></span>
-          <span>
-            <strong>FactGuard</strong>
-            <small>Content authenticity</small>
+        <div className="brand">
+          <span className="brand-mark">
+            <i /><i />
           </span>
-        </button>
-        <span className="privacy-chip"><LockKeyhole size={12} /> Local history</span>
+          <span className="brand-text">
+            <span className="brand-title">VeriFai</span>
+            <span className="brand-tagline">History &amp; Dashboard</span>
+          </span>
+        </div>
+
+        <div className="topbar-actions">
+          <button
+            className="status-chip"
+            onClick={checkHealth}
+            title={backendOnline ? "VeriFai API Connected" : "Backend Offline — Click to recheck"}
+          >
+            <span className={`status-dot ${backendOnline ? "" : "offline"}`} />
+            <span>{backendOnline ? "API Live" : "Offline"}</span>
+            {isCheckingHealth && <RefreshCw size={10} className="spin" style={{ marginLeft: 3 }} />}
+          </button>
+
+          {user ? (
+            <button
+              className="user-btn"
+              onClick={handleLogout}
+              title={`Signed in as ${user.name || user.email}. Click to sign out.`}
+            >
+              <User size={12} />
+              <span>{user.name?.split(" ")[0] || "Account"}</span>
+              <LogOut size={10} style={{ marginLeft: 2, opacity: 0.7 }} />
+            </button>
+          ) : (
+            <button
+              className="user-btn"
+              onClick={() => setShowAuthModal(true)}
+              title="Sign in to your VeriFai account"
+            >
+              <Lock size={11} />
+              <span>Sign In</span>
+            </button>
+          )}
+        </div>
       </header>
 
+      {/* ── Focused 2-Tab Navigation: History & Dashboard ── */}
+      <nav className="nav-tabs" role="tablist">
+        <button
+          className={`tab-btn ${activeTab === "history" ? "active" : ""}`}
+          onClick={() => setActiveTab("history")}
+          role="tab"
+          aria-selected={activeTab === "history"}
+        >
+          <History size={13} /> History
+          {scanHistory.length > 0 && (
+            <span className="tab-count-pill">{scanHistory.length}</span>
+          )}
+        </button>
+
+        <button
+          className={`tab-btn ${activeTab === "dashboard" ? "active" : ""}`}
+          onClick={() => setActiveTab("dashboard")}
+          role="tab"
+          aria-selected={activeTab === "dashboard"}
+        >
+          <LayoutDashboard size={13} /> Dashboard
+        </button>
+      </nav>
+
+      {/* ── Main Content Area ── */}
       <main className="popup-main">
-        {status === "idle" && !guide && (
-          <section className="home-view view-enter">
-            <div className="intro">
-              <p className="eyebrow">Verification workspace</p>
-              <h1>Inspect content on this page</h1>
-              <p>Review a visible image or selected writing without leaving your current tab.</p>
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 1: SCAN HISTORY
+            ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === "history" && (
+          <section className="view-enter">
+            {/* Search & Filter Bar */}
+            <div className="history-toolbar">
+              <div className="search-box">
+                <Search size={13} className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search scans by text or verdict…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-input"
+                />
+                {searchQuery && (
+                  <button
+                    className="search-clear-btn"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              <div className="history-filter-row">
+                <div className="filter-chips">
+                  {[
+                    { id: "all", label: "All" },
+                    { id: "text", label: "Writing" },
+                    { id: "news", label: "News" },
+                    { id: "media", label: "Images" },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      className={`filter-chip ${historyFilter === f.id ? "active" : ""}`}
+                      onClick={() => setHistoryFilter(f.id)}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                {scanHistory.length > 0 && (
+                  <button
+                    className="clear-history-btn"
+                    onClick={handleClearHistory}
+                    title="Clear all stored scans"
+                  >
+                    <Trash2 size={12} /> Clear
+                  </button>
+                )}
+              </div>
             </div>
 
-            <section className="status-summary" aria-labelledby="dashboard-status">
-              <span className="status-summary-icon"><ShieldCheck size={20} /></span>
-              <span>
-                <strong id="dashboard-status">Awaiting content</strong>
-                <small>Choose an image or text check to begin</small>
-              </span>
-              <span className="status-label">Idle</span>
-            </section>
-
-            <section className="analysis-section" aria-labelledby="analysis-tools-heading">
-              <div className="section-heading tool-heading">
-                <h2 id="analysis-tools-heading">Analysis tools</h2>
-                <span>Choose one</span>
-              </div>
-
-              <div className="tool-list">
-                <button
-                  className="tool-row image-tool"
-                  onClick={startImageCheck}
-                  disabled={isStarting}
-                  aria-busy={isStarting}
-                >
-                  <span className="tool-icon"><ScanSearch size={24} /></span>
-                  <span className="tool-copy">
-                    <strong>Check an image</strong>
-                    <small>Capture and crop a visible region</small>
-                  </span>
-                  <ArrowRight className="row-arrow" size={19} aria-hidden="true" />
-                </button>
-
-                <button
-                  className="tool-row text-tool"
-                  onClick={prepareTextCheck}
-                  disabled={isStarting}
-                  aria-busy={isStarting}
-                >
-                  <span className="tool-icon"><TextQuote size={24} /></span>
-                  <span className="tool-copy">
-                    <strong>Check selected text</strong>
-                    <small>Review highlighted writing on this page</small>
-                  </span>
-                  <ArrowRight className="row-arrow" size={19} aria-hidden="true" />
-                </button>
-              </div>
-
-              <div className="shortcut-strip" aria-label="Quick image capture shortcut">
-                <Keyboard size={17} aria-hidden="true" />
-                <span>Quick image capture</span>
-                <kbd>Alt</kbd><span className="plus">+</span><kbd>Shift</kbd><span className="plus">+</span><kbd>F</kbd>
-              </div>
-            </section>
-
-            {textHistory.length > 0 && (
-              <section className="recent-section" aria-labelledby="recent-checks-heading">
-                <div className="section-heading">
-                  <h2 id="recent-checks-heading">Recent text checks</h2>
-                  <span>{textHistory.length} saved</span>
+            {/* History List */}
+            {filteredHistory.length === 0 ? (
+              <div className="empty-history-card">
+                <div className="empty-icon-shell">
+                  <History size={26} />
                 </div>
-                <div className="history-list">
-                  {textHistory.slice(0, 3).map((entry, index) => {
-                    const isAI = Boolean(entry.result?.isAIGenerated ?? entry.result?.isFake);
-                    return (
-                      <div className="history-row" key={`${entry.timestamp}-${index}`}>
-                        <span className={`history-verdict ${isAI ? "caution" : "clear"}`}>
-                          {isAI ? <AlertTriangle size={15} /> : <Check size={15} />}
-                        </span>
-                        <span className="history-copy">
-                          <strong>{entry.snippet}{entry.snippet?.length >= 50 ? "…" : ""}</strong>
-                          <small>{entry.result?.confidence}% confidence · {formatTime(entry.timestamp)}</small>
-                        </span>
+                <h3>{scanHistory.length === 0 ? "No Scans Saved Yet" : "No Matching Results"}</h3>
+                <p>
+                  {scanHistory.length === 0
+                    ? "Highlight text on any website to see the Analyze popup, or press Alt+Shift+F to cut an image."
+                    : "Try adjusting your search terms or filter."}
+                </p>
+              </div>
+            ) : (
+              <div className="history-list">
+                {filteredHistory.map((item, idx) => {
+                  const info = getVerdictInfo(item);
+                  const isNews = item.kind === "news";
+                  const isImage = item.kind === "media" || item.kind === "news_image";
+
+                  return (
+                    <div
+                      className="history-card-item"
+                      key={`${item.id || item.timestamp}-${idx}`}
+                      onClick={() => setSelectedScan(item)}
+                    >
+                      <div className="history-card-icon-col">
+                        <div className={`history-kind-badge ${item.kind || "text"}`}>
+                          {isNews ? (
+                            <Newspaper size={13} />
+                          ) : isImage ? (
+                            <FileImage size={13} />
+                          ) : (
+                            <FileText size={13} />
+                          )}
+                        </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="history-card-content">
+                        <div className="history-card-title-row">
+                          <span className="history-card-title" title={item.title}>
+                            {item.title || "Scan"}
+                          </span>
+                          <span className={`verdict-badge ${info.tone}`}>
+                            {info.label}
+                          </span>
+                        </div>
+
+                        <div className="history-card-meta-row">
+                          <span className="history-time">
+                            <Clock size={10} style={{ marginRight: 3, verticalAlign: "middle" }} />
+                            {formatTimestamp(item.timestamp)}
+                          </span>
+                          {item.result?.confidence !== undefined && (
+                            <span className="history-confidence">
+                              {item.result.confidence}% confidence
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="history-card-arrow">
+                        <ChevronRight size={14} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 2: DASHBOARD & METRICS
+            ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === "dashboard" && (
+          <section className="view-enter dashboard-shell">
+            {/* Quick Metrics Grid */}
+            <div className="metrics-grid">
+              <div className="metric-box">
+                <span className="metric-label">Total Scans</span>
+                <strong className="metric-val">{stats.total}</strong>
+                <span className="metric-sub">Across all tabs</span>
+              </div>
+
+              <div className="metric-box green">
+                <span className="metric-label">Authentic</span>
+                <strong className="metric-val">{stats.authentic}</strong>
+                <span className="metric-sub">{stats.authenticPct}% of scans</span>
+              </div>
+
+              <div className="metric-box red">
+                <span className="metric-label">Flagged / AI</span>
+                <strong className="metric-val">{stats.aiOrFake}</strong>
+                <span className="metric-sub">{stats.aiOrFakePct}% of scans</span>
+              </div>
+            </div>
+
+            {/* Launch Web Dashboard Callout */}
+            <div className="dashboard-cta-card">
+              <div className="dashboard-cta-head">
+                <div className="dashboard-cta-brand">
+                  <Sparkles size={16} style={{ color: "var(--accent)" }} />
+                  <strong>VeriFai Full Analytics</strong>
                 </div>
-              </section>
-            )}
-          </section>
-        )}
-
-        {status === "idle" && guide === "image" && (
-          <GuideView
-            title="Check a visible image"
-            subtitle="FactGuard captures only the tab you are viewing, then lets you choose the exact region."
-            icon={<ImageIcon size={28} />}
-            notice={notice}
-            onBack={() => { setGuide(null); setNotice(null); }}
-            steps={[
-              { icon: <Keyboard size={18} />, title: "Start the capture", text: "Click below or press Alt + Shift + F on any regular webpage." },
-              { icon: <Crop size={18} />, title: "Drag over the image", text: "A crop window opens. Select the area you want to inspect." },
-              { icon: <CheckCircle2 size={18} />, title: "Confirm and review", text: "Choose Confirm Crop and reopen FactGuard to see the result." },
-            ]}
-            action={
-              <button className="primary-action" onClick={startImageCheck} disabled={isStarting}>
-                <ScanSearch size={18} />
-                {isStarting ? "Starting capture…" : "Start image check"}
-              </button>
-            }
-          />
-        )}
-
-        {status === "idle" && guide === "text" && (
-          <GuideView
-            title="Check selected text"
-            subtitle="Works on articles, posts, documents, and most regular webpages."
-            icon={<TextQuote size={28} />}
-            notice={notice}
-            onBack={() => { setGuide(null); setNotice(null); }}
-            steps={[
-              { icon: <MousePointer2 size={18} />, title: "Highlight the writing", text: "Select at least 10 characters on the current webpage." },
-              { icon: <ShieldCheck size={18} />, title: "Choose Analyze", text: "A small FactGuard button appears beside your selection." },
-              { icon: <CheckCircle2 size={18} />, title: "Read the result", text: "The verdict and confidence appear next to the selected text." },
-            ]}
-            action={
-              <button className="primary-action" onClick={() => window.close()}>
-                <MousePointer2 size={18} />
-                {notice?.type === "error" ? "Close and open a webpage" : "Close and select text"}
-              </button>
-            }
-          />
-        )}
-
-        {(status === "cropping" || status === "analyzing") && (
-          <section className="progress-view view-enter" aria-live="polite">
-            <div className="scan-visual">
-              {croppedImage ? <img src={croppedImage} alt="Selected crop" /> : <ScanSearch size={40} />}
-              <span className="scan-line" />
-            </div>
-            <p className="eyebrow">{status === "cropping" ? "Crop window active" : "Inspection in progress"}</p>
-            <h1>{status === "cropping" ? "Select the region to check" : "Looking for visual signals…"}</h1>
-            <p>{status === "cropping" ? "Drag over the image, then choose Confirm Crop." : "This usually takes only a moment."}</p>
-            <div className="loading-line"><span /></div>
-          </section>
-        )}
-
-        {status === "done" && results && (
-          <section className="result-view view-enter">
-            <div className="result-topline">
-              <p className="eyebrow">Image check complete</p>
-              <button className="icon-button" onClick={resetImage} aria-label="Start over"><RotateCcw size={17} /></button>
-            </div>
-
-            {croppedImage && <img className="result-image" src={croppedImage} alt="Analyzed selection" />}
-
-            <div className={`verdict-block ${needsAttention ? "caution" : "clear"}`}>
-              <span className="verdict-mark">
-                {needsAttention ? <AlertTriangle size={25} /> : <CheckCircle2 size={25} />}
-              </span>
-              <span>
-                <small>Assessment</small>
-                <strong>{results.label || (isImageFake ? "Likely AI-generated" : "Likely authentic")}</strong>
-              </span>
-            </div>
-
-            <div className="confidence-block">
-              <div>
-                <span>Model confidence</span>
-                <strong>{confidence.toFixed(confidence % 1 ? 1 : 0)}%</strong>
+                <span className="cta-pill">Web App</span>
               </div>
-              <div className="confidence-track" aria-label={`${confidence}% model confidence`}>
-                <span style={{ width: `${confidence}%` }} />
+              <p className="dashboard-cta-desc">
+                Access your forensic logs, batch verification tools, and deep learning neural telemetry.
+              </p>
+              <a
+                href={DASHBOARD_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-primary dashboard-link-btn"
+              >
+                Open Full Web Dashboard <ExternalLink size={13} style={{ marginLeft: 6 }} />
+              </a>
+            </div>
+
+            {/* System Status & ML Engine Info */}
+            <div className="card" style={{ padding: 14 }}>
+              <div className="card-title-row" style={{ marginBottom: 8 }}>
+                <h3 className="card-title" style={{ fontSize: 12.5 }}>
+                  <ShieldCheck size={14} /> Engine &amp; Model Status
+                </h3>
+                <span className="card-meta">Local Node</span>
+              </div>
+
+              <div className="engine-status-list">
+                <div className="engine-row">
+                  <div className="engine-name-col">
+                    <span className="engine-dot live" />
+                    <strong>Text Detector</strong>
+                  </div>
+                  <span className="engine-model-tag">XLM-RoBERTa (v4)</span>
+                </div>
+
+                <div className="engine-row">
+                  <div className="engine-name-col">
+                    <span className="engine-dot live" />
+                    <strong>Philippine Fact-Check</strong>
+                  </div>
+                  <span className="engine-model-tag">Vera Files &amp; Rappler</span>
+                </div>
+
+                <div className="engine-row">
+                  <div className="engine-name-col">
+                    <span className="engine-dot live" />
+                    <strong>Visual Forensics</strong>
+                  </div>
+                  <span className="engine-model-tag">Gemini Vision OCR</span>
+                </div>
+
+                <div className="engine-row">
+                  <div className="engine-name-col">
+                    <span className={`engine-dot ${backendOnline ? "live" : "offline"}`} />
+                    <strong>Backend Server</strong>
+                  </div>
+                  <span className="engine-model-tag">http://localhost:8000</span>
+                </div>
               </div>
             </div>
 
-            <dl className="result-meta">
-              <div><dt>Model</dt><dd>{results.details?.model || "FactGuard detector"}</dd></div>
-              <div><dt>Analysis time</dt><dd>{results.details?.analysisTime || "—"}</dd></div>
-            </dl>
+            {/* User Account / Session Profile */}
+            <div className="card" style={{ padding: 14 }}>
+              <div className="card-title-row" style={{ marginBottom: 6 }}>
+                <h3 className="card-title" style={{ fontSize: 12.5 }}>
+                  <User size={14} /> Account Status
+                </h3>
+                <span className="card-meta">{user ? "Active" : "Guest"}</span>
+              </div>
 
-            {isDemoResult && (
-              <div className="notice demo"><AlertTriangle size={17} /><span>This build uses simulated detection results. Connect a real detector API before relying on verdicts.</span></div>
-            )}
+              {user ? (
+                <div className="user-profile-block">
+                  <div className="user-avatar-shell">
+                    {user.name ? user.name.slice(0, 2).toUpperCase() : "VF"}
+                  </div>
+                  <div className="user-profile-details">
+                    <strong>{user.name || "VeriFai Member"}</strong>
+                    <span>{user.email}</span>
+                  </div>
+                  <button className="btn-secondary" onClick={handleLogout} style={{ height: 28, fontSize: 11 }}>
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="guest-profile-block">
+                  <p>You are using VeriFai in guest mode. Sign in to sync your scans with the web dashboard.</p>
+                  <button className="btn-secondary" onClick={() => setShowAuthModal(true)} style={{ width: "100%", height: 32 }}>
+                    <Lock size={12} style={{ marginRight: 6 }} /> Sign In to VeriFai
+                  </button>
+                </div>
+              )}
+            </div>
 
-            {results.details?.error && (
-              <div className="notice error"><AlertTriangle size={17} /><span>{results.details.error}</span></div>
-            )}
-
-            <button className="primary-action" onClick={resetImage}>
-              <RotateCcw size={18} /> Check another image
-            </button>
-            <p className="disclaimer">AI detection is an estimate. Verify important decisions with additional sources.</p>
+            {/* On-Page Workflow Guide */}
+            <div className="shortcuts-guide-card">
+              <div className="guide-head">
+                <MousePointer2 size={13} style={{ color: "var(--accent)" }} />
+                <span>How to Verify on Any Webpage:</span>
+              </div>
+              <ul className="guide-steps">
+                <li>
+                  <strong>Highlight Text:</strong> Select 5+ characters anywhere on any site &rarr; Click the floating <strong>"Analyze"</strong> pill.
+                </li>
+                <li>
+                  <strong>Image Cut:</strong> Press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> &rarr; Drag a box across any graphic &rarr; Click <strong>"Analyze"</strong>.
+                </li>
+              </ul>
+            </div>
           </section>
         )}
       </main>
 
-      <footer className="popup-footer">
-        {isDashboard ? (
-          <><ShieldCheck size={14} aria-hidden="true" /> Checks stay in this browser</>
-        ) : (
-          <><span className="status-dot" /> Ready to inspect this page</>
-        )}
-        <span>v1.0</span>
-      </footer>
-    </div>
-  );
-}
+      {/* ── Scan Detail Modal (Opened from History Item) ── */}
+      {selectedScan && (
+        <div className="modal-backdrop" onClick={() => setSelectedScan(null)}>
+          <div className="modal-window" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div className="modal-title-wrap">
+                <span className="modal-badge-kind">{selectedScan.kind?.toUpperCase() || "SCAN"}</span>
+                <h3>Scan Detail</h3>
+              </div>
+              <button
+                className="modal-close-x"
+                onClick={() => setSelectedScan(null)}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-function GuideView({ title, subtitle, icon, notice, onBack, steps, action }) {
-  return (
-    <section className="guide-view view-enter">
-      <button className="back-button" onClick={onBack}><ArrowLeft size={17} /> All tools</button>
-      <div className="guide-heading">
-        <span className="guide-icon">{icon}</span>
-        <div><h1>{title}</h1><p>{subtitle}</p></div>
-      </div>
+            <div className="modal-scroll-body">
+              {/* Verdict Header */}
+              <div className="detail-verdict-banner">
+                <span className={`verdict-badge ${getVerdictInfo(selectedScan).tone}`} style={{ fontSize: 11.5, padding: "4px 10px" }}>
+                  {getVerdictInfo(selectedScan).label}
+                </span>
+                {selectedScan.result?.confidence && (
+                  <span className="detail-conf-stat">
+                    {selectedScan.result.confidence}% confidence
+                  </span>
+                )}
+              </div>
 
-      {notice && (
-        <div className={`notice ${notice.type}`} role="status">
-          {notice.type === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
-          <span>{notice.text}</span>
+              {/* Title / Snippet */}
+              <div className="detail-field">
+                <span className="detail-field-label">Scanned Content</span>
+                <p className="detail-field-snippet">{selectedScan.title}</p>
+              </div>
+
+              {/* Model Explanation */}
+              <div className="detail-field">
+                <span className="detail-field-label">Analysis Summary</span>
+                <p className="detail-field-desc">
+                  {selectedScan.result?.explanation ||
+                    selectedScan.result?.summary ||
+                    selectedScan.result?.reasoningSummary ||
+                    selectedScan.result?.scoreInterpretation ||
+                    "No additional summary provided."}
+                </p>
+              </div>
+
+              {/* Text Dual Bars */}
+              {selectedScan.kind === "text" && selectedScan.result && (
+                <div className="score-track-block" style={{ margin: "10px 0" }}>
+                  <div className="score-track-item">
+                    <div className="score-track-head">
+                      <span>AI Writing Likelihood</span>
+                      <strong>{selectedScan.result.aiProbability ?? selectedScan.result.confidence}%</strong>
+                    </div>
+                    <div className="score-bar">
+                      <div
+                        className="score-fill ai"
+                        style={{ width: `${selectedScan.result.aiProbability ?? selectedScan.result.confidence}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="score-track-item">
+                    <div className="score-track-head">
+                      <span>Human Writing Likelihood</span>
+                      <strong>{selectedScan.result.humanProbability ?? 100 - selectedScan.result.confidence}%</strong>
+                    </div>
+                    <div className="score-bar">
+                      <div
+                        className="score-fill human"
+                        style={{ width: `${selectedScan.result.humanProbability ?? 100 - selectedScan.result.confidence}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Signals */}
+              {selectedScan.result?.signals && selectedScan.result.signals.length > 0 && (
+                <div className="signals-block" style={{ margin: "10px 0" }}>
+                  <div className="signals-label">Detected Signals</div>
+                  <div className="signals-list">
+                    {selectedScan.result.signals.map((sig) => (
+                      <span className="signal-tag" key={sig}>{sig}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Closest Story */}
+              {selectedScan.result?.closestStory?.found && (
+                <div className="closest-story-card" style={{ margin: "10px 0" }}>
+                  <div className="closest-story-copy">
+                    <small>CLOSEST VERIFIED REPORT</small>
+                    <strong>{selectedScan.result.closestStory.title}</strong>
+                    {selectedScan.result.closestStory.url && (
+                      <a
+                        href={selectedScan.result.closestStory.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="story-link"
+                      >
+                        Read Report <ExternalLink size={11} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Timestamp & Telemetry */}
+              <div className="detail-telemetry">
+                <span>{selectedScan.result?.details?.model || "VeriFai Local Pipeline"}</span>
+                <span>{formatTimestamp(selectedScan.timestamp)}</span>
+              </div>
+            </div>
+
+            <div className="modal-foot">
+              <button className="btn-secondary" onClick={handleCopyScan} style={{ height: 32 }}>
+                <Copy size={12} style={{ marginRight: 5 }} />
+                {copiedDetail ? "Copied!" : "Copy Summary"}
+              </button>
+              <button className="btn-primary" onClick={() => setSelectedScan(null)} style={{ height: 32 }}>
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      <ol className="instruction-list">
-        {steps.map((step, index) => (
-          <li key={step.title}>
-            <span className="step-icon">{step.icon}</span>
-            <div><small>Step {index + 1}</small><strong>{step.title}</strong><p>{step.text}</p></div>
-          </li>
-        ))}
-      </ol>
-      {action}
-      <p className="restricted-note"><LockKeyhole size={13} /> Browser settings and Web Store pages do not allow extension tools.</p>
-    </section>
+      {/* ── Sign In Modal ── */}
+      {showAuthModal && (
+        <div className="modal-backdrop" onClick={() => setShowAuthModal(false)}>
+          <div className="modal-window" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Sign In to VeriFai</h3>
+              <button
+                className="modal-close-x"
+                onClick={() => setShowAuthModal(false)}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <form className="modal-form" onSubmit={handleLogin}>
+              {authError && <div className="form-error">{authError}</div>}
+              <div className="form-group">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Password</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  required
+                />
+              </div>
+              <button type="submit" className="btn-primary" disabled={isLoggingIn} style={{ marginTop: 6 }}>
+                {isLoggingIn ? "Signing In…" : "Sign In to VeriFai"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Footer ── */}
+      <footer className="popup-footer">
+        <span>VeriFai v1.1 · Authenticity Guard</span>
+        <a
+          href={DASHBOARD_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="footer-link"
+        >
+          Web Dashboard <ExternalLink size={10} style={{ marginLeft: 2, verticalAlign: "middle" }} />
+        </a>
+      </footer>
+    </div>
   );
 }

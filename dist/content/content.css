@@ -1,239 +1,989 @@
-#factguard-trigger-btn,
-#factguard-tooltip,
-#factguard-tooltip * {
+/* ═══════════════════════════════════════════════════════════════════════
+   VeriFai — In-Page UI Design System
+   Matches VeriFai Brand: Stark Paper/Ink, Crimson Accent, Official Mark, Light & Dark Theme
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#verifai-trigger-btn,
+#verifai-trigger-btn *,
+#verifai-tooltip,
+#verifai-tooltip *,
+#verifai-snip-overlay,
+#verifai-snip-overlay *,
+#verifai-snip-toolbar,
+#verifai-snip-toolbar *,
+#verifai-inpage-loader,
+#verifai-inpage-loader *,
+#verifai-image-result-modal,
+#verifai-image-result-modal * {
   box-sizing: border-box;
 }
 
-#factguard-trigger-btn {
+/* ─── Official Brand Mark ────────────────────────────────────────────────── */
+.verifai-brand-mark {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border: 1.8px solid #ef1717;
+  border-radius: 5px;
+  display: inline-block;
+  color: #ef1717;
+  flex-shrink: 0;
+}
+
+.verifai-brand-mark::before,
+.verifai-brand-mark::after,
+.verifai-brand-mark i {
+  content: "";
+  position: absolute;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+.verifai-brand-mark::before {
+  width: 4.5px;
+  height: 4.5px;
+  left: 2px;
+  top: 2px;
+}
+
+.verifai-brand-mark::after {
+  width: 4.5px;
+  height: 4.5px;
+  right: 2px;
+  bottom: 2px;
+}
+
+.verifai-brand-mark i:first-child {
+  width: 2px;
+  height: 4.5px;
+  right: 2px;
+  top: 2px;
+}
+
+.verifai-brand-mark i:last-child {
+  width: 4.5px;
+  height: 2px;
+  left: 2px;
+  bottom: 2px;
+}
+
+/* ─── Floating Text Selection Pill Container ─────────────────────────────── */
+#verifai-trigger-btn {
   position: absolute;
   z-index: 2147483647;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  background: #ffffff;
+  border: 1px solid #d1d1d1;
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+  opacity: 0;
+  pointer-events: auto;
+  transform: translateY(4px) scale(0.97);
+  transition: opacity 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+#verifai-trigger-btn.verifai-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+#verifai-trigger-btn:hover {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16), 0 4px 10px rgba(0, 0, 0, 0.08);
+  border-color: #090909;
+}
+
+/* Dark mode for trigger pill */
+#verifai-trigger-btn.verifai-dark {
+  background: #121214;
+  border-color: #27272a;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+#verifai-trigger-btn.verifai-dark:hover {
+  border-color: #3f3f46;
+}
+
+/* Brand header in trigger pill */
+.verifai-pill-brand {
   display: flex;
-  height: 36px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px 0 6px;
+  height: 28px;
+  color: #090909;
+  font-size: 11.5px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+#verifai-trigger-btn.verifai-dark .verifai-pill-brand {
+  color: #f4f4f5;
+}
+
+/* Primary "Analyze Text" Button */
+.verifai-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+}
+
+.verifai-pill-btn.primary {
+  background: #ef1717;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(239, 23, 23, 0.3);
+}
+
+.verifai-pill-btn.primary:hover {
+  background: #c70d0d;
+  box-shadow: 0 4px 10px rgba(239, 23, 23, 0.5);
+  transform: translateY(-1px);
+}
+
+/* Secondary "Check News Validity" Button */
+.verifai-pill-btn.secondary {
+  background: #f6f6f6;
+  color: #090909;
+  border-color: #e6e6e6;
+}
+
+.verifai-pill-btn.secondary:hover {
+  background: #090909;
+  color: #ffffff;
+  border-color: #090909;
+  transform: translateY(-1px);
+}
+
+#verifai-trigger-btn.verifai-dark .verifai-pill-btn.secondary {
+  background: #1e1e22;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+#verifai-trigger-btn.verifai-dark .verifai-pill-btn.secondary:hover {
+  background: #ffffff;
+  color: #090909;
+  border-color: #ffffff;
+}
+
+.verifai-pill-btn:active {
+  transform: translateY(0);
+}
+
+.verifai-pill-btn.loading {
+  cursor: wait !important;
+  opacity: 0.85;
+}
+
+.verifai-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: verifai-spin 600ms linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.verifai-spinner.dark-spin {
+  border-color: rgba(9, 9, 9, 0.2);
+  border-top-color: #090909;
+}
+
+@keyframes verifai-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Floating Result Card / Popup (White by default, Dark mode toggleable)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#verifai-tooltip {
+  position: absolute;
+  z-index: 2147483647;
+  width: 340px;
+  padding: 16px 18px;
+  border: 1px solid #e6e6e6;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.05);
+  color: #090909;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12.5px;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: auto;
+  transform: translateY(6px) scale(0.98);
+  transition: opacity 160ms ease, transform 160ms ease, background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+#verifai-tooltip.verifai-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* ─── Dark Mode for Tooltip ──────────────────────────────────────────────── */
+#verifai-tooltip.verifai-dark {
+  background: #111113;
+  color: #f4f4f5;
+  border-color: #27272a;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Top bar row with Brand Mark, Title, Theme Toggle, Close */
+.verifai-card-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.verifai-card-brand-col {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #090909;
+}
+
+#verifai-tooltip.verifai-dark .verifai-card-brand-col {
+  color: #ffffff;
+}
+
+.verifai-card-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Dark/Light Mode Switcher Button */
+.verifai-theme-toggle-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #e6e6e6;
+  background: #f6f6f6;
+  color: #6b6b6b;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 0 14px;
-  border: 1px solid rgba(255, 250, 240, 0.38);
-  border-radius: 12px 4px 12px 4px;
-  background: #1f6a56;
-  box-shadow: 0 9px 25px rgba(23, 43, 38, 0.25);
-  color: #fffaf0;
-  cursor: pointer;
-  font-family: "Avenir Next", Avenir, "Century Gothic", sans-serif;
-  font-size: 12px;
-  font-weight: 750;
-  line-height: 1;
-  opacity: 0;
-  pointer-events: auto;
-  transform: translateY(5px);
-  transition: opacity 180ms ease-out, transform 180ms ease-out, background-color 180ms ease-out;
+  transition: all 0.12s ease;
 }
 
-#factguard-trigger-btn.factguard-visible {
-  opacity: 1;
-  transform: translateY(0);
+.verifai-theme-toggle-btn:hover {
+  background: #090909;
+  color: #ffffff;
+  border-color: #090909;
 }
 
-#factguard-trigger-btn:hover {
-  background: #164b3e;
+#verifai-tooltip.verifai-dark .verifai-theme-toggle-btn {
+  background: #1e1e22;
+  color: #a1a1aa;
+  border-color: #27272a;
 }
 
-#factguard-trigger-btn:focus-visible {
-  outline: 3px solid rgba(31, 106, 86, 0.3);
-  outline-offset: 3px;
+#verifai-tooltip.verifai-dark .verifai-theme-toggle-btn:hover {
+  background: #ffffff;
+  color: #090909;
+  border-color: #ffffff;
 }
 
-#factguard-trigger-btn .factguard-icon,
-#factguard-trigger-btn .factguard-spinner {
-  width: 15px;
-  height: 15px;
-}
-
-#factguard-trigger-btn .factguard-icon {
-  color: #d8eee4;
-}
-
-#factguard-trigger-btn .factguard-spinner {
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fffaf0;
-  border-radius: 50%;
-  animation: factguard-spin 650ms linear infinite;
-}
-
-#factguard-tooltip {
-  position: absolute;
-  z-index: 2147483647;
-  width: 310px;
-  padding: 19px;
-  border: 1px solid rgba(74, 92, 83, 0.2);
-  border-radius: 18px 6px 18px 6px;
-  background: #fffdf7;
-  box-shadow: 0 22px 52px rgba(35, 49, 43, 0.24);
-  color: #172b26;
-  font-family: "Avenir Next", Avenir, "Century Gothic", sans-serif;
-  font-size: 13px;
-  opacity: 0;
-  pointer-events: auto;
-  transform: translateY(6px);
-  transition: opacity 200ms ease-out, transform 200ms ease-out;
-}
-
-#factguard-tooltip::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 5px;
-  border-radius: 18px 0 0 6px;
-  background: #1f6a56;
-  content: "";
-}
-
-#factguard-tooltip.factguard-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-#factguard-tooltip .factguard-close-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: grid;
-  width: 27px;
-  height: 27px;
-  place-items: center;
+/* Close Button */
+.verifai-close-btn {
+  width: 24px;
+  height: 24px;
   padding: 0;
-  border: 1px solid #d9d4c8;
-  border-radius: 50%;
-  background: #f5f1e8;
-  color: #52645e;
+  border: 1px solid #e6e6e6;
+  background: #f6f6f6;
+  color: #6b6b6b;
+  font-size: 16px;
+  line-height: 1;
   cursor: pointer;
-  font: 18px/1 Georgia, serif;
-  transition: background-color 160ms ease-out, color 160ms ease-out;
-}
-
-#factguard-tooltip .factguard-close-btn:hover {
-  background: #e9e5dc;
-  color: #172b26;
-}
-
-#factguard-tooltip .factguard-close-btn:focus-visible {
-  outline: 3px solid rgba(31, 106, 86, 0.26);
-  outline-offset: 2px;
-}
-
-#factguard-tooltip .factguard-verdict {
-  display: inline-flex;
-  max-width: 235px;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 22px;
-  padding: 7px 10px;
-  border-radius: 10px 3px 10px 3px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-#factguard-tooltip .factguard-verdict.factguard-clear {
-  background: #d8eee4;
-  color: #164b3e;
-}
-
-#factguard-tooltip .factguard-verdict.factguard-caution {
-  background: #f8e1cd;
-  color: #71391f;
-}
-
-#factguard-tooltip .factguard-verdict svg {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 auto;
-}
-
-#factguard-tooltip .factguard-confidence-header {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.12s ease;
+}
+
+.verifai-close-btn:hover {
+  background: #090909;
+  color: #ffffff;
+  border-color: #090909;
+}
+
+#verifai-tooltip.verifai-dark .verifai-close-btn {
+  background: #1e1e22;
+  color: #a1a1aa;
+  border-color: #27272a;
+}
+
+#verifai-tooltip.verifai-dark .verifai-close-btn:hover {
+  background: #ef1717;
+  color: #ffffff;
+  border-color: #ef1717;
+}
+
+/* Verdict Badge (Real / Fake / Warning) */
+.verifai-verdict-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   margin-bottom: 8px;
 }
 
-#factguard-tooltip .factguard-confidence-label {
-  color: #52645e;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.verifai-verdict-pill.real {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
 }
 
-#factguard-tooltip .factguard-confidence-value {
-  color: #172b26;
-  font: 600 25px/1 Georgia, "Times New Roman", serif;
+.verifai-verdict-pill.fake {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
-#factguard-tooltip .factguard-bar-track {
-  width: 100%;
-  height: 6px;
-  margin-bottom: 22px;
-  overflow: hidden;
-  border-radius: 6px;
-  background: #deddd3;
+.verifai-verdict-pill.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
 }
 
-#factguard-tooltip .factguard-bar-fill {
-  width: 0;
-  height: 100%;
-  border-radius: inherit;
-  background: #1f6a56;
-  transition: width 220ms ease-out;
+#verifai-tooltip.verifai-dark .verifai-verdict-pill.real {
+  background: rgba(22, 163, 74, 0.2);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
 }
 
-#factguard-tooltip .factguard-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 13px 0;
-  border-top: 1px solid #d9d4c8;
-  border-bottom: 1px solid #d9d4c8;
+#verifai-tooltip.verifai-dark .verifai-verdict-pill.fake {
+  background: rgba(239, 23, 23, 0.2);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
 }
 
-#factguard-tooltip .factguard-detail-item {
+#verifai-tooltip.verifai-dark .verifai-verdict-pill.warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.verifai-card-title {
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+  color: #090909;
+}
+
+#verifai-tooltip.verifai-dark .verifai-card-title {
+  color: #ffffff;
+}
+
+.verifai-card-desc {
+  font-size: 11.5px;
+  color: #6b6b6b;
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+#verifai-tooltip.verifai-dark .verifai-card-desc {
+  color: #a1a1aa;
+}
+
+/* Dual Likelihood / Confidence Bars */
+.verifai-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #f6f6f6;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+#verifai-tooltip.verifai-dark .verifai-bars {
+  background: #141416;
+  border-color: #27272a;
+}
+
+.verifai-bar-row {
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
 
-#factguard-tooltip .factguard-detail-key {
-  color: #52645e;
+.verifai-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 650;
+  color: #6b6b6b;
+}
+
+#verifai-tooltip.verifai-dark .verifai-bar-labels {
+  color: #a1a1aa;
+}
+
+.verifai-bar-labels strong {
+  color: #090909;
+}
+
+#verifai-tooltip.verifai-dark .verifai-bar-labels strong {
+  color: #ffffff;
+}
+
+.verifai-bar-track {
+  width: 100%;
+  height: 5px;
+  background: #e5e5e5;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#verifai-tooltip.verifai-dark .verifai-bar-track {
+  background: #27272a;
+}
+
+.verifai-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+}
+
+.verifai-bar-fill.ai {
+  background: #ef1717;
+}
+
+.verifai-bar-fill.human {
+  background: #16a34a;
+}
+
+/* Stylistic Signal Tags */
+.verifai-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.verifai-tag {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+#verifai-tooltip.verifai-dark .verifai-tag {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fcd34d;
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+/* Closest news story inside tooltip */
+.verifai-news-evidence {
+  padding: 8px 10px;
+  background: #fafafa;
+  border: 1px solid #e6e6e6;
+  border-left: 3px solid #ef1717;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 11px;
+}
+
+#verifai-tooltip.verifai-dark .verifai-news-evidence {
+  background: #141416;
+  border-color: #27272a;
+  border-left-color: #ef1717;
+}
+
+.verifai-news-evidence small {
   font-size: 9px;
+  font-weight: 750;
+  color: #c70d0d;
+  display: block;
+}
+
+.verifai-news-evidence a {
+  color: #090909;
+  font-weight: 700;
+  text-decoration: none;
+  display: block;
+  margin-top: 2px;
+}
+
+#verifai-tooltip.verifai-dark .verifai-news-evidence a {
+  color: #f4f4f5;
+}
+
+.verifai-news-evidence a:hover {
+  color: #ef1717;
+  text-decoration: underline;
+}
+
+/* Tooltip Footer & Actions */
+.verifai-tooltip-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #e6e6e6;
+  font-size: 10px;
+  color: #6b6b6b;
+  font-weight: 600;
+}
+
+#verifai-tooltip.verifai-dark .verifai-tooltip-footer {
+  border-color: #27272a;
+  color: #71717a;
+}
+
+.verifai-copy-btn {
+  background: #f6f6f6;
+  border: 1px solid #d1d1d1;
+  color: #090909;
+  font-size: 10px;
+  font-weight: 650;
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.verifai-copy-btn:hover {
+  background: #090909;
+  color: #ffffff;
+  border-color: #090909;
+}
+
+#verifai-tooltip.verifai-dark .verifai-copy-btn {
+  background: #1e1e22;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+
+#verifai-tooltip.verifai-dark .verifai-copy-btn:hover {
+  background: #ffffff;
+  color: #090909;
+  border-color: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   In-Page Snipping / Screen Cut Overlay
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#verifai-snip-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483647;
+  cursor: crosshair;
+  user-select: none;
+  overflow: hidden;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+#verifai-snip-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Top instruction pill on snipper */
+.verifai-snip-topbar {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid #d1d1d1;
+  border-radius: 999px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+  color: #090909;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 10;
+}
+
+.verifai-snip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 750;
+  color: #090909;
+}
+
+.verifai-snip-hint {
+  color: #6b6b6b;
+  font-size: 11px;
+}
+
+.verifai-snip-cancel-btn {
+  background: #f6f6f6;
+  border: 1px solid #e6e6e6;
+  color: #090909;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.verifai-snip-cancel-btn:hover {
+  background: #ef1717;
+  color: #fff;
+  border-color: #ef1717;
+}
+
+/* Floating Action Toolbar Anchored to Snipped Box */
+#verifai-snip-toolbar {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: #ffffff;
+  border: 1px solid #d1d1d1;
+  border-radius: 999px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+}
+
+.verifai-snip-mode-select {
+  display: flex;
+  align-items: center;
+  background: #f6f6f6;
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.verifai-snip-mode-btn {
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 650;
+  color: #6b6b6b;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.verifai-snip-mode-btn.active {
+  background: #090909;
+  color: #ffffff;
+}
+
+.verifai-snip-confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 14px;
+  background: #ef1717;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(239, 23, 23, 0.3);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.verifai-snip-confirm-btn:hover {
+  background: #c70d0d;
+  box-shadow: 0 4px 10px rgba(239, 23, 23, 0.5);
+  transform: translateY(-1px);
+}
+
+.verifai-snip-cancel-action-btn {
+  background: transparent;
+  border: none;
+  color: #6b6b6b;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 8px;
+  cursor: pointer;
+  height: 28px;
+  border-radius: 999px;
+  transition: all 0.12s ease;
+}
+
+.verifai-snip-cancel-action-btn:hover {
+  color: #090909;
+  background: #f6f6f6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   In-Page Loading Card (Shown while Analyzing Image)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#verifai-inpage-loader {
+  position: fixed;
+  z-index: 2147483647;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 32px;
+  background: #ffffff;
+  border: 1px solid #d1d1d1;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18), 0 4px 16px rgba(0, 0, 0, 0.08);
+  color: #090909;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-align: center;
+  min-width: 280px;
+  user-select: none;
+  animation: verifai-modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.verifai-loader-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef1717;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.verifai-loader-icon::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: #ef1717;
+  animation: verifai-spin 800ms linear infinite;
+}
+
+.verifai-loader-title {
+  font-size: 14px;
+  font-weight: 750;
+  margin: 0 0 4px;
+  color: #090909;
+}
+
+.verifai-loader-sub {
+  font-size: 11.5px;
+  color: #6b6b6b;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   In-Page Image Result Modal
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#verifai-image-result-modal {
+  position: fixed;
+  z-index: 2147483647;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #d1d1d1;
+  border-radius: 16px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.2);
+  color: #090909;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+  animation: verifai-modal-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+#verifai-image-result-modal.verifai-dark {
+  background: #111113;
+  color: #f4f4f5;
+  border-color: #27272a;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes verifai-modal-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.verifai-modal-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.verifai-modal-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.07em;
+  color: #090909;
+  letter-spacing: -0.01em;
+}
+
+#verifai-image-result-modal.verifai-dark .verifai-modal-brand {
+  color: #ffffff;
+}
+
+.verifai-thumb-preview {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e6e6e6;
+  margin-bottom: 12px;
+  background: #000;
+}
+
+#verifai-image-result-modal.verifai-dark .verifai-thumb-preview {
+  border-color: #27272a;
+}
+
+.verifai-ocr-block {
+  padding: 8px 10px;
+  background: #f6f6f6;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+
+#verifai-image-result-modal.verifai-dark .verifai-ocr-block {
+  background: #141416;
+  border-color: #27272a;
+}
+
+.verifai-ocr-block small {
+  font-size: 9.5px;
+  font-weight: 750;
+  color: #6b6b6b;
+  display: block;
+  margin-bottom: 3px;
   text-transform: uppercase;
 }
 
-#factguard-tooltip .factguard-detail-val {
-  color: #172b26;
-  font-size: 13px;
-  font-weight: 750;
+.verifai-ocr-text {
+  color: #090909;
+  font-style: italic;
+  line-height: 1.4;
 }
 
-#factguard-tooltip .factguard-powered {
-  margin-top: 13px;
-  color: #71807b;
-  font-size: 9px;
+#verifai-image-result-modal.verifai-dark .verifai-ocr-text {
+  color: #f4f4f5;
+}
+
+.verifai-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.verifai-btn-dismiss {
+  flex: 1;
+  height: 32px;
+  background: #ef1717;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 11.5px;
   font-weight: 700;
-  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-@keyframes factguard-spin {
-  to { transform: rotate(360deg); }
+.verifai-btn-dismiss:hover {
+  background: #c70d0d;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  #factguard-trigger-btn,
-  #factguard-tooltip,
-  #factguard-tooltip .factguard-bar-fill {
-    animation: none !important;
-    transition-duration: 0.01ms !important;
-  }
+.verifai-btn-copy-modal {
+  height: 32px;
+  padding: 0 12px;
+  background: #f6f6f6;
+  border: 1px solid #d1d1d1;
+  color: #090909;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.verifai-btn-copy-modal:hover {
+  background: #090909;
+  color: #ffffff;
+  border-color: #090909;
+}
+
+#verifai-image-result-modal.verifai-dark .verifai-btn-copy-modal {
+  background: #1e1e22;
+  color: #f4f4f5;
+  border-color: #27272a;
+}
+
+#verifai-image-result-modal.verifai-dark .verifai-btn-copy-modal:hover {
+  background: #ffffff;
+  color: #090909;
 }

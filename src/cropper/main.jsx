@@ -1,5 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "@fontsource-variable/manrope";
+import "@fontsource-variable/dm-sans";
 import Cropper from "./Cropper.jsx";
 import "./cropper.css";
 
